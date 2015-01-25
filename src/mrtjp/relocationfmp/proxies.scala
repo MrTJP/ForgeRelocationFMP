@@ -1,0 +1,44 @@
+/*
+ * Copyright (c) 2014.
+ * Created by MrTJP.
+ * All rights reserved.
+ */
+package mrtjp.relocationfmp
+
+import codechicken.multipart.{MultiPartRegistry, MultipartGenerator}
+import cpw.mods.fml.relauncher.{Side, SideOnly}
+import mrtjp.relocation.api.IFrame
+import mrtjp.relocation.api.RelocationAPI.{instance => API}
+
+class RelocationFMPProxy_server
+{
+    def preinit()
+    {
+        API.registerFramePlacement(FramePlacement)
+        API.registerTileMover("FMP", "Handler used to move blocks from Forge Multipart", FMPTileHandler)
+        API.registerMandatoryMover("mod:ForgeMultipart", "FMP")
+    }
+
+    def init()
+    {
+        MultipartGenerator.registerPassThroughInterface(classOf[IFrame].getName)
+        MultiPartRegistry.registerParts((_, _) => new FramePart, "rfmp_frame")
+        MultiPartRegistry.registerConverter(FrameBlockConverter)
+    }
+
+    def postinit(){}
+}
+
+class RelocationFMPProxy_client extends RelocationFMPProxy_server
+{
+    @SideOnly(Side.CLIENT)
+    override def preinit() = super.preinit()
+
+    @SideOnly(Side.CLIENT)
+    override def init() = super.init()
+
+    @SideOnly(Side.CLIENT)
+    override def postinit() = super.postinit()
+}
+
+object RelocationFMPProxy extends RelocationFMPProxy_client
