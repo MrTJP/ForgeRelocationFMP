@@ -5,7 +5,7 @@
  */
 package mrtjp.relocationfmp
 
-import codechicken.lib.raytracer.{ExtendedMOP, IndexedCuboid6}
+import codechicken.lib.raytracer.ExtendedMOP
 import codechicken.lib.render.{CCRenderState, TextureUtils}
 import codechicken.lib.vec.{BlockCoord, Cuboid6, Rotation, Vector3}
 import codechicken.microblock.CommonMicroblock

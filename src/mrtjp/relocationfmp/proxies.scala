@@ -15,7 +15,7 @@ class RelocationFMPProxy_server
     def preinit()
     {
         API.registerFramePlacement(FramePlacement)
-        API.registerTileMover("FMP", "Handler used to move blocks from Forge Multipart", FMPTileHandler)
+        API.registerTileMover("FMP", "Tile mover for Forge Multipart", FMPTileHandler)
         API.registerMandatoryMover("mod:ForgeMultipart", "FMP")
     }
 
