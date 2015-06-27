@@ -7,14 +7,14 @@ package mrtjp.relocationfmp
 
 import codechicken.multipart.{MultiPartRegistry, MultipartGenerator}
 import cpw.mods.fml.relauncher.{Side, SideOnly}
-import mrtjp.relocation.api.IFrame
+import mrtjp.mcframes.api.{IFrame, MCFramesAPI}
 import mrtjp.relocation.api.RelocationAPI.{instance => API}
 
 class RelocationFMPProxy_server
 {
     def preinit()
     {
-        API.registerFramePlacement(FramePlacement)
+        MCFramesAPI.instance.registerFramePlacement(FramePlacement)
         API.registerTileMover("FMP", "Tile mover for Forge Multipart", FMPTileHandler)
         API.registerMandatoryMover("mod:ForgeMultipart", "FMP")
     }

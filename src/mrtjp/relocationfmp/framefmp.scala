@@ -7,13 +7,17 @@ package mrtjp.relocationfmp
 
 import codechicken.lib.raytracer.ExtendedMOP
 import codechicken.lib.render.{CCRenderState, TextureUtils}
+import codechicken.lib.vec.Rotation._
+import codechicken.lib.vec.Vector3._
 import codechicken.lib.vec.{BlockCoord, Cuboid6, Rotation, Vector3}
 import codechicken.microblock.CommonMicroblock
 import codechicken.multipart.MultiPartRegistry.IPartConverter
 import codechicken.multipart._
 import cpw.mods.fml.relauncher.{Side, SideOnly}
-import mrtjp.relocation.api.RelocationAPI.{instance => API}
-import mrtjp.relocation.api.{IFrame, IFramePlacement, ITileMover}
+import mrtjp.core.world.WorldLib
+import mrtjp.mcframes.api.MCFramesAPI.{instance => API}
+import mrtjp.mcframes.api.{IFrame, IFramePlacement}
+import mrtjp.relocation.api.ITileMover
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.init.Blocks
 import net.minecraft.item.ItemStack
@@ -22,15 +26,16 @@ import net.minecraft.world.World
 
 import scala.collection.JavaConversions._
 
-class FramePart extends TMultiPart with IFrame with TFacePart with TCuboidPart with TIconHitEffects
+class FramePart extends TMultiPart with IFrame with TCuboidPart with TNormalOcclusion with TIconHitEffects
 {
     override def getType = "rfmp_frame"
 
-    override def latchSide(w:World, x:Int, y:Int, z:Int, side:Int) = tile.partMap(side) match
+    override def stickOut(w:World, x:Int, y:Int, z:Int, side:Int) = tile.partMap(side) match
     {
         case part:CommonMicroblock => part.getSize != 1
         case _ => true
     }
+    override def stickIn(w:World, x:Int, y:Int, z:Int, side:Int) = stickOut(w, x, y, z, side)
 
     override def getStrength(mop:MovingObjectPosition, player:EntityPlayer) =
         player.getBreakSpeed(API.getFrameBlock, false, 0, mop.blockX, mop.blockY, mop.blockZ)/
@@ -41,24 +46,61 @@ class FramePart extends TMultiPart with IFrame with TFacePart with TCuboidPart w
 
     override def getBounds = Cuboid6.full
 
-    override def occlusionTest(npart:TMultiPart) = !npart.isInstanceOf[FramePart]
+    override def getOcclusionBoxes =
+    {
+        FramePart.sideOccludeTest match
+        {
+            case -1 => Seq()
+            case s => Seq(FramePart.aBounds(s))
+        }
+    }
+
+    def sideOcclusionTest(side:Int) =
+    {
+        FramePart.sideOccludeTest = side
+        val fits = tile.canReplacePart(this, this)
+        FramePart.sideOccludeTest = -1
+        fits
+    }
+
+    def sideOcclusionMask =
+    {
+        var mask = 0
+        for (s <- 0 until 6) if (sideOcclusionTest(s)) mask |= 1<<s
+        mask
+    }
+
+    override def occlusionTest(npart:TMultiPart):Boolean =
+    {
+        if (npart.isInstanceOf[FramePart]) return false
+
+        //modified normal occlusion test that also tests collision boxes
+        if (FramePart.sideOccludeTest != -1)
+        {
+            var boxes = Seq[Cuboid6]()
+            if(npart.isInstanceOf[JNormalOcclusion])
+                boxes ++= npart.asInstanceOf[JNormalOcclusion].getOcclusionBoxes
+            if(npart.isInstanceOf[JPartialOcclusion])
+                boxes ++= npart.asInstanceOf[JPartialOcclusion].getPartialOcclusionBoxes
+            boxes ++= npart.getCollisionBoxes
+
+            NormalOcclusionTest(boxes, getOcclusionBoxes)
+        }
+        else super.occlusionTest(npart)
+    }
 
     override def collisionRayTrace(from:Vec3, to:Vec3) =
-        API.raytraceFrame(x, y, z, from, to) match
+    {
+        API.raytraceFrame(x, y, z, ~sideOcclusionMask, from, to) match
         {
-            case mop:MovingObjectPosition => new ExtendedMOP(mop, 0, from.squareDistanceTo(mop.hitVec))
+            case mop:MovingObjectPosition =>
+                Cuboid6.full.setBlockBounds(tile.getBlockType)
+                new ExtendedMOP(mop, 0, from.squareDistanceTo(mop.hitVec))
             case _ => null
         }
+    }
 
     override def doesTick = false
-
-    override def getSlotMask = 0
-
-    override def solid(side:Int) = tile.partMap(side) match
-    {
-        case part:CommonMicroblock => true
-        case _ => false
-    }
 
     @SideOnly(Side.CLIENT)
     override def renderStatic(pos:Vector3, pass:Int) = pass match
@@ -66,7 +108,7 @@ class FramePart extends TMultiPart with IFrame with TFacePart with TCuboidPart w
         case 0 =>
             TextureUtils.bindAtlas(0)
             CCRenderState.setBrightness(world, x, y, z)
-            API.renderFrame(pos.x, pos.y, pos.z)
+            API.renderFrame(pos.x, pos.y, pos.z, ~sideOcclusionMask)
             true
         case _ => false
     }
@@ -75,12 +117,27 @@ class FramePart extends TMultiPart with IFrame with TFacePart with TCuboidPart w
     override def getBrokenIcon(side:Int) = API.getFrameBlock.getIcon(side, 0)
 }
 
+object FramePart
+{
+    var sideOccludeTest = -1
+
+    var aBounds = new Array[Cuboid6](6)
+
+    {
+        val i = 4/16D
+        val th = 1/16D
+        for(s <- 0 until 6)
+            aBounds(s) = new Cuboid6(i, 0, i, 1-i, th, 1-i)
+                    .apply(sideRotations(s).at(center))
+    }
+}
+
 object FrameBlockConverter extends IPartConverter
 {
     override def blockTypes = Seq(API.getFrameBlock)
 
     override def convert(world:World, pos:BlockCoord) =
-        if (world.getBlock(pos.x, pos.y, pos.z) eq API.getFrameBlock) new FramePart else null
+        if (world.getBlock(pos.x, pos.y, pos.z) == API.getFrameBlock) new FramePart else null
 }
 
 object FramePlacement extends IFramePlacement
@@ -97,10 +154,11 @@ object FramePlacement extends IFramePlacement
         {
             if (TileMultipart.getTile(world, pos) == null) return false
             val part = new FramePart
-            if(!TileMultipart.canPlacePart(world, pos, part)) return false
+            if (!TileMultipart.canPlacePart(world, pos, part))
+                return false
 
-            if(!world.isRemote) TileMultipart.addPart(world, pos, part)
-            if(!player.capabilities.isCreativeMode) item.stackSize-=1
+            if (!world.isRemote) TileMultipart.addPart(world, pos, part)
+            if (!player.capabilities.isCreativeMode) item.stackSize-=1
 
             true
         }
@@ -130,21 +188,21 @@ object FMPTileHandler extends ITileMover
         te match
         {
             case t:TileMultipart =>
-                API.uncheckedRemoveTileEntity(w, x, y, z)
-                API.uncheckedSetBlock(w, x, y, z, Blocks.air, 0)
+                WorldLib.uncheckedRemoveTileEntity(w, x, y, z)
+                WorldLib.uncheckedSetBlock(w, x, y, z, Blocks.air, 0)
 
                 val bc = new BlockCoord(x, y, z).offset(side)
-                API.uncheckedSetBlock(w, bc.x, bc.y, bc.z, b, meta)
+                WorldLib.uncheckedSetBlock(w, bc.x, bc.y, bc.z, b, meta)
 
                 te.xCoord = bc.x
                 te.yCoord = bc.y
                 te.zCoord = bc.z
-                API.uncheckedSetTileEntity(w, bc.x, bc.y, bc.z, te)
+                WorldLib.uncheckedSetTileEntity(w, bc.x, bc.y, bc.z, te)
             case _ =>
         }
     }
 
-    override def postMove(w:World, x:Int, y:Int, z:Int) = API.uncheckedGetTileEntity(w, x, y, z) match
+    override def postMove(w:World, x:Int, y:Int, z:Int) = WorldLib.uncheckedGetTileEntity(w, x, y, z) match
     {
         case te:TileMultipart => te.onMoved()
         case _ =>

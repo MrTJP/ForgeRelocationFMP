@@ -34,6 +34,7 @@ repositories {
 
 apply plugin: 'scala'
 apply plugin: 'forge'
+apply plugin: 'curseforge'
 
 group = "mrtjp"
 archivesBaseName = "ForgeRelocationFMP"
@@ -52,15 +53,13 @@ configurations {
 
 dependencies {
     deployerJars "org.apache.maven.wagon:wagon-ftp:2.2"
-    compile "codechicken:CodeChickenLib:${config.mc.version}-${config.ccl.version}:dev"
     compile "codechicken:ForgeMultipart:${config.mc.version}-${config.fmp.version}:dev"
-    compile "mrtjp:MrTJPCore:${config.mc.version}-${config.mrtjp.version}:dev"
     compile "mrtjp:ForgeRelocation:${config.mc.version}-${config.fr.version}:dev"
 }
 
 def build_number = project.hasProperty("manualbuildnum") ? project.manualbuildnum : (System.getenv("BUILD_NUMBER") ?: "1")
 version = "${project.config.mod.version}."+build_number
-println config.mc.version+"-"+config.forge.version
+println "Starting build for $archivesBaseName $version for MC $config.mc.version-$config.forge.version"
 
 minecraft {
     version = config.mc.version+"-"+config.forge.version
@@ -92,9 +91,7 @@ task updateVersion(type: Copy) {
             'BUILD_NUMBER' : build_number,
             'MC_VERSION'   : config.mc.version,
             'FORGE_VERSION': config.forge.version,
-            'CCL_VERSION'  : config.ccl.version,
             'FMP_VERSION'  : config.fmp.version,
-            'MRTJP_VERSION': config.mrtjp.version,
             'FR_VERSION'   : config.fr.version
     ])
 }
@@ -103,7 +100,6 @@ processResources {
     //redo task if any of these properties change
     inputs.property "version", project.version
     inputs.property "mc.version", config.mc.version
-    inputs.property "ccl.version", config.ccl.version
 
     // Replace properties in all files
     from(sourceSets.main.resources.srcDirs) {
@@ -113,9 +109,7 @@ processResources {
                 'BUILD_NUMBER' : build_number,
                 'MC_VERSION'   : config.mc.version,
                 'FORGE_VERSION': config.forge.version,
-                'CCL_VERSION'  : config.ccl.version,
                 'FMP_VERSION'  : config.fmp.version,
-                'MRTJP_VERSION': config.mrtjp.version,
                 'FR_VERSION'   : config.fr.version
         ])
     }
@@ -161,10 +155,8 @@ def createDeployMeta()
         deps {
             Minecraft(project.minecraft.version)
             Forge(config.forge.version)
-            MrTJPCore(config.mrtjp.version)
             Relocation(config.fr.version)
             FMP(config.fmp.version)
-            CCL(config.ccl.version)
         }
 
         isPublic(true)
@@ -217,13 +209,13 @@ uploadArchives {
 
                         issueManagement {
                             system 'github'
-                            url 'https://github.com/MrTJP/'+project.archivesBaseName+'/issues'
+                            url 'https://github.com/MrTJP/ForgeRelocation/issues'
                         }
 
                         licenses {
                             license {
                                 name 'Restricted Public Software License (RPSL) v1.3.1'
-                                url 'https://raw.githubusercontent.com/MrTJP/ProjectRed/master/LICENSE.md'
+                                url 'https://raw.githubusercontent.com/MrTJP/'+project.archivesBaseName+'/master/LICENSE'
                                 distribution 'repo'
                             }
                         }
@@ -239,5 +231,20 @@ uploadArchives {
                 }
             }
         }
+    }
+}
+
+if (project.hasProperty('curseapi'))
+{
+    curse {
+        projectId = '232076'
+        apiKey = project.curseapi
+        releaseType = 'release'
+
+        relatedProject 'forge-relocation': 'requiredLibrary'
+        relatedProject 'forge-multi-part': 'requiredLibrary'
+
+        additionalArtifact deobfJar
+        additionalArtifact sourceJar
     }
 }
