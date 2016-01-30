@@ -28,7 +28,7 @@ repositories {
 
     maven {
         name "mvnmrtjp"
-        url "http://projectredwiki.com/maven"
+        url "http://files.projectredwiki.com/maven"
     }
 }
 
@@ -119,6 +119,7 @@ processResources {
     }
 }
 
+compileScala.dependsOn updateVersion
 
 task deobfJar(type: Jar) {
     from sourceSets.main.output
@@ -134,56 +135,15 @@ jar {
     classifier = 'universal'
 }
 
-def deployMetaFile()
-{
-    new File(new File(project.projectDir, "build/libs/"),
-            "deploymeta-${project.minecraft.version}-${project.version}.xml")
-}
-
-def createDeployMeta()
-{
-    def writer = new StringWriter()
-    def xml = new MarkupBuilder(writer)
-
-    def today = new SimpleDateFormat('dd-MM-yyyy').format(new Date())
-
-    xml.deployMeta() {
-        modversion(version)
-
-        date(today)
-
-        deps {
-            Minecraft(project.minecraft.version)
-            Forge(config.forge.version)
-            Relocation(config.fr.version)
-            FMP(config.fmp.version)
-        }
-
-        isPublic(true)
-
-        isRecommended(false)
-    }
-
-    def file = deployMetaFile()
-
-    def stream = new FileOutputStream(file)
-    stream.write(writer.toString().getBytes())
-    stream.flush()
-    stream.close()
-}
-
 artifacts {
     archives deobfJar
     archives sourceJar
-    archives deployMetaFile()
 }
 
 uploadArchives {
     dependsOn 'reobf'
-    doFirst {createDeployMeta()}
     repositories {
-        if (project.hasProperty("mavenurl"))
-        {
+        if (project.hasProperty("mavenurl")) {
             mavenDeployer {
                 configuration = configurations.deployerJars
 
