@@ -6,9 +6,10 @@
 package mrtjp.relocationfmp
 
 import codechicken.multipart.{MultiPartRegistry, MultipartGenerator}
-import cpw.mods.fml.relauncher.{Side, SideOnly}
 import mrtjp.mcframes.api.{IFrame, MCFramesAPI}
 import mrtjp.relocation.api.RelocationAPI.{instance => API}
+import net.minecraft.util.ResourceLocation
+import net.minecraftforge.fml.relauncher.{Side, SideOnly}
 
 class RelocationFMPProxy_server
 {
@@ -16,13 +17,12 @@ class RelocationFMPProxy_server
     {
         MCFramesAPI.instance.registerFramePlacement(FramePlacement)
         API.registerTileMover("FMP", "Tile mover for Forge Multipart", FMPTileHandler)
-        API.registerMandatoryMover("mod:ForgeMultipart", "FMP")
+        API.registerMandatoryMover("mod:forgemultipartcbe", "FMP")
     }
 
     def init()
     {
-        MultipartGenerator.registerPassThroughInterface(classOf[IFrame].getName)
-        MultiPartRegistry.registerParts((_, _) => new FramePart, "rfmp_frame")
+        MultiPartRegistry.registerParts((_:ResourceLocation, _:Boolean) => new FramePart, Array(FramePart.partType))
         MultiPartRegistry.registerConverter(FrameBlockConverter)
     }
 

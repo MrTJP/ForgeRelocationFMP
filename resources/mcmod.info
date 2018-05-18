@@ -1,6 +1,6 @@
 [
 {
-  "modid": "RelocationFMP",
+  "modid": "relocation-fmp",
   "name": "RelocationFMP",
   "parent":"ForgeRelocation",
   "description":"Adds FMP support to ForgeRelocation",
@@ -11,8 +11,8 @@
   "credits": "",
   "logoFile": "",
   "screenshots": [],
-  "requiredMods": [ "ForgeRelocation", "ForgeMultipart" ],
-  "dependencies": [ "ForgeRelocation", "ForgeMultipart" ],
+  "requiredMods": [ "forgerelocation", "forgemultipartcbe" ],
+  "dependencies": [ "forgerelocation", "forgemultipartcbe" ],
   "dependants" : [],
   "useDependencyInformation": true
 }
