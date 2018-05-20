@@ -6,6 +6,7 @@
 package mrtjp.relocationfmp
 
 import codechicken.lib.raytracer.{CuboidRayTraceResult, IndexedCuboid6}
+import codechicken.lib.render.CCRenderState
 import codechicken.lib.texture.TextureUtils
 import codechicken.lib.vec.Rotation._
 import codechicken.lib.vec.Vector3._
@@ -16,8 +17,8 @@ import codechicken.multipart.api.IPartConverter
 import codechicken.multipart.handler.MultipartProxy
 import mrtjp.core.world.WorldLib
 import mrtjp.mcframes.api.MCFramesAPI.{instance => API}
-import mrtjp.mcframes.api.{IFrame, IFramePlacement}
-import mrtjp.relocation.api.ITileMover
+import mrtjp.mcframes.api.IFramePlacement
+import mrtjp.relocation.api.{IFrame, ITileMover}
 import net.minecraft.block.state.IBlockState
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.init.Blocks
@@ -30,7 +31,7 @@ import net.minecraftforge.fml.relauncher.{Side, SideOnly}
 
 import scala.collection.JavaConversions._
 
-class FramePart extends TMultiPart with IFrame with TCuboidPart with TNormalOcclusionPart with TIconHitEffectsPart with IModelRenderPart with ICapabilityProvider
+class FramePart extends TMultiPart with IFrame with TCuboidPart with TNormalOcclusionPart with TIconHitEffectsPart with ICapabilityProvider
 {
     override val getType = FramePart.partType
 
@@ -97,7 +98,7 @@ class FramePart extends TMultiPart with IFrame with TCuboidPart with TNormalOccl
 
     override def collisionRayTrace(start:Vec3d, end:Vec3d) =
     {
-        API.raytraceFrame(pos, start, end) match {
+        API.raytraceFrame(pos, ~sideOcclusionMask,  start, end) match {
             case mop:RayTraceResult =>
                 val cube = new IndexedCuboid6(0, Cuboid6.full)
                 val dist = start.squareDistanceTo(mop.hitVec)
@@ -106,13 +107,13 @@ class FramePart extends TMultiPart with IFrame with TCuboidPart with TNormalOccl
         }
     }
 
-    override def canRenderInLayer(layer:BlockRenderLayer) = API.getFrameBlock.canRenderInLayer(API.getFrameBlock.getDefaultState, layer)
-
-    override def getModelPath = null
-
-    override def createBlockStateContainer = API.getFrameBlock.getBlockState
-
-    override def getCurrentState(state:IBlockState) = API.getFrameBlock.getDefaultState
+    override def renderStatic(pos:Vector3, layer:BlockRenderLayer, ccrs:CCRenderState) = layer match {
+        case BlockRenderLayer.CUTOUT =>
+            ccrs.setBrightness(world, this.pos)
+            API.renderFrame(ccrs, pos.x, pos.y, pos.z, ~sideOcclusionMask)
+            true
+        case _ => super.renderStatic(pos, layer, ccrs)
+    }
 
     @SideOnly(Side.CLIENT)
     override def getBreakingIcon(hit:CuboidRayTraceResult) = getBrokenIcon(hit.sideHit.ordinal)

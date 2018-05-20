@@ -6,7 +6,7 @@
 package mrtjp.relocationfmp
 
 import codechicken.multipart.{MultiPartRegistry, MultipartGenerator}
-import mrtjp.mcframes.api.{IFrame, MCFramesAPI}
+import mrtjp.mcframes.api.MCFramesAPI
 import mrtjp.relocation.api.RelocationAPI.{instance => API}
 import net.minecraft.util.ResourceLocation
 import net.minecraftforge.fml.relauncher.{Side, SideOnly}
